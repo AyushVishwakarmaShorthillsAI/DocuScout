@@ -108,9 +108,4 @@ DocuScout is a **Compliance Analysis Engine**. You can use it for any industry b
 
 ---
 
-## 8. Why This Wins (The Pitch)
 
-1.  **Solves a Real Problem**: Everyone hates reading contracts, but everyone has to do it.
-2.  **Not Just a Wrapper**: Most "AI Legal" projects are just ChatGPT wrappers. DocuScout uses Agents (Researcher, Critic) to perform a complex workflow that a single prompt cannot do.
-3.  **Safety First**: By separating "Risk Detection" (Auditor) from "Validation" (Critic), we drastically reduce hallucinations—a key requirement for legal tech.
-4.  **Dynamic**: The ability to "Teach" the agent a new law via a URL during the demo is a "Wow" moment for judges.
