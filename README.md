@@ -99,10 +99,10 @@ DocuScout is a **Compliance Analysis Engine**. You can use it for any industry b
 
 ## 7. Hackathon Tech Stack
 
-*   **Orchestration**: `LangGraph` (Python) - Crucial for the Auditor <-> Critic feedback loop.
-*   **LLM**: `GPT-4o-mini` (Smart & Cheap) or `Groq` (Fast).
+*   **Orchestration**: Custom Python Agents using **Google Gen AI SDK**.
+*   **LLM**: `Gemini 1.5 Flash` (Fast & Multimodal) or `Gemini 1.5 Pro` (Reasoning).
 *   **Knowledge Base**: `ChromaDB` (Vector Store for Q&A and Rules).
-*   **Tools**: `LangChain WebBaseLoader` (For the Researcher Agent).
+*   **Tools**: Native Python Tools (for the Researcher Agent).
 *   **Frontend**: `Streamlit`.
 *   **Key Library**: `streamlit-pdf-viewer` or `streamlit-annotation-tools` to show the Highlights.
 
