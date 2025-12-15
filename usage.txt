@@ -1,0 +1,5 @@
+1) cd DocuScout
+2) make a virtual env (say venv)
+3) pip install -r requirements.txt
+4) adk web
+5) select Agent as agent from the drop down in adk web -> ingest the DB docs -> ask query

@@ -12,6 +12,7 @@ from .Subagents.ClauseHunter.agent import root_agent as clause_hunter_agent
 from .Subagents.RiskAuditor.agent import root_agent as risk_auditor_agent
 from .Subagents.Critic.agent import root_agent as critic_agent
 from .Subagents.Researcher.agent import root_agent as researcher_agent
+from .Subagents.Consultor.agent import root_agent as consultor_agent
 
 load_dotenv()
 
@@ -33,9 +34,10 @@ root_agent = LlmAgent(
         clause_hunter_agent,
         risk_auditor_agent,
         critic_agent,
-        researcher_agent
+        researcher_agent,
+        consultor_agent
     ],
-    description="You route user requests to the appropriate subagents.",
-    instruction="Route user requests to the appropriate subagent based on their needs."
+    description="You route user requests to the appropriate subagents. You have agents for greeting, reading files, hunting clauses, auditing risks, criticizing contracts, researching, and consulting on document content.",
+    instruction="Route user requests to the appropriate subagent based on their needs. Use the Consultor agent for answering questions about the content of ingested documents."
 )
 
