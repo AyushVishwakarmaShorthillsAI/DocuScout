@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocuScout - Intelligent Risk Radar</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="32" height="32" rx="8" fill="#6366F1"/>
+                        <path d="M16 8L22 14L16 20L10 14L16 8Z" fill="white"/>
+                        <path d="M8 22L14 16L20 22L14 28L8 22Z" fill="white" opacity="0.8"/>
+                    </svg>
+                    <h1>DocuScout</h1>
+                </div>
+                <p class="tagline">The Intelligent Risk Radar for Your Contracts & Documents</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Left Sidebar - Agent Status -->
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <h2>Agent System</h2>
+                    <div class="agent-status" id="agentStatus">
+                        <div class="status-indicator active">
+                            <span class="status-dot"></span>
+                            <span>Orchestrator Ready</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="dropdown-header" id="agentsDropdown">
+                        <h3>Available Agents</h3>
+                        <svg class="dropdown-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="agent-list collapsed" id="agentList">
+                        <!-- Agents will be loaded here -->
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Quick Actions</h3>
+                    <button class="btn btn-secondary" id="ingestBtn">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M8 2V14M2 8H14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Ingest Documents
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Center - Chat Interface -->
+            <section class="chat-section">
+                <div class="chat-header">
+                    <h2>Document Analysis</h2>
+                    <div class="chat-controls">
+                        <button class="btn-icon" id="clearChatBtn" title="Clear Chat">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M3 3L17 17M3 17L17 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message bot-message">
+                        <div class="message-avatar">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <rect width="24" height="24" rx="4" fill="#6366F1"/>
+                                <path d="M12 6L16 10L12 14L8 10L12 6Z" fill="white"/>
+                            </svg>
+                        </div>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <span class="message-sender">DocuScout</span>
+                                <span class="message-time" id="currentTime"></span>
+                            </div>
+                            <div class="message-text">
+                                Welcome to DocuScout! I'm your intelligent risk radar for contracts and documents. I can help you analyze legal documents, identify risky clauses, and answer questions about your documents.<br><br>
+                                <strong>Get started:</strong>
+                                <ul>
+                                    <li>Click "Ingest Documents" to upload your documents from the DB folder</li>
+                                    <li>Ask me questions about your documents</li>
+                                    <li>I'll analyze risks and highlight dangerous clauses</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-container">
+                    <div class="input-wrapper">
+                        <textarea 
+                            id="messageInput" 
+                            class="chat-input" 
+                            placeholder="Ask a question or describe what you need..."
+                            rows="1"
+                        ></textarea>
+                        <button class="btn btn-primary" id="sendBtn">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            Send
+                        </button>
+                    </div>
+                    <div class="input-hint">
+                        Press Enter to send, Shift+Enter for new line
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Sidebar - Document Info -->
+            <aside class="info-sidebar">
+                <div class="info-section">
+                    <h3>Document Status</h3>
+                    <div class="status-card" id="docStatus">
+                        <div class="status-item">
+                            <span class="status-label">Documents Ingested:</span>
+                            <span class="status-value" id="docCount">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Store Status:</span>
+                            <span class="status-value" id="storeStatus">Not Ready</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h3>Risk Analysis</h3>
+                    <div class="risk-summary" id="riskSummary">
+                        <div class="risk-item">
+                            <span class="risk-badge high">High</span>
+                            <span class="risk-count" id="highRiskCount">0</span>
+                        </div>
+                        <div class="risk-item">
+                            <span class="risk-badge medium">Medium</span>
+                            <span class="risk-count" id="mediumRiskCount">0</span>
+                        </div>
+                        <div class="risk-item">
+                            <span class="risk-badge low">Low</span>
+                            <span class="risk-count" id="lowRiskCount">0</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p id="loadingMessage">Processing...</p>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
+

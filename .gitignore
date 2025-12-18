@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.*.local
+howtouselitellm.txt
 
 # Python
 __pycache__/
