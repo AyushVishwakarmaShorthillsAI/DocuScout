@@ -13,6 +13,7 @@ from Agent.Subagents.FileReader.tools import ingest_documents
 from Agent.Subagents.Consultor.tools import query_docs
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
+from google.genai import types as genai_types
 import asyncio
 from typing import Optional, Dict, Any
 
@@ -41,11 +42,14 @@ class AgentHandler:
             print(f"[AgentHandler] Processing chat message: {message[:50]}...")
             
             # Use Runner to execute the agent properly
+            # Create Content object from message string
+            content = genai_types.Content(parts=[genai_types.Part(text=message)])
+            
             response_text = ""
             async for event in self.runner.run_async(
                 user_id="docuscout_user",
                 session_id=conversation_id or "default",
-                user_message=message
+                new_message=content
             ):
                 # Collect text from events - handle different event types safely
                 try:
