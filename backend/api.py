@@ -22,8 +22,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Ensure DB folder exists
-DB_FOLDER = Path("DB")
+# Ensure DB folder exists in project root (not in backend folder)
+# Get project root: go up from backend/ to project root
+BACKEND_DIR = Path(__file__).parent
+PROJECT_ROOT = BACKEND_DIR.parent
+DB_FOLDER = PROJECT_ROOT / "DB"
 DB_FOLDER.mkdir(exist_ok=True)
 
 # Request/Response models
@@ -43,6 +46,13 @@ class IngestResponse(BaseModel):
     error: Optional[str] = None
     session_id: Optional[str] = None
     files_uploaded: int = 0
+
+class PredictWarningsResponse(BaseModel):
+    success: bool
+    report: Optional[str] = None
+    error: Optional[str] = None
+    step: Optional[str] = None
+    session_id: Optional[str] = None
 
 
 @app.get("/")
@@ -159,6 +169,86 @@ async def chat(request: ChatRequest):
         print(f"[API] Chat error: {str(e)}")
         import traceback
         traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/predict-warnings", response_model=PredictWarningsResponse)
+async def predict_warnings(
+    session_id: Optional[str] = Query(None)  # Ignored - always uses global session
+):
+    """
+    Predict warnings by sequentially calling ClauseHunter, Researcher, and Critic agents.
+    
+    This endpoint:
+    1. Calls ClauseHunter to extract clauses from documents
+    2. Calls Researcher to research legal updates
+    3. Calls Critic to analyze risks and generate report
+    4. Returns the markdown report from risk_audit_report.md
+    
+    IMPORTANT: Uses a global session_id that is shared across all requests.
+    """
+    import time
+    import traceback
+    request_start_time = time.time()
+    
+    try:
+        print("=" * 100)
+        print(f"[API] 🔔 Predict Warnings endpoint called at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"[API] 📥 Request received - session_id param: {session_id} (will be ignored, using global session)")
+        print(f"[API] 🔄 Using global session_id (shared across all requests)")
+        print("=" * 100)
+        
+        # Call agent handler to predict warnings via ADK client
+        # ADK client will use/create global session (session_id parameter is ignored)
+        handler_start = time.time()
+        print(f"[API] 🚀 Calling agent_handler.predict_warnings() at {time.strftime('%H:%M:%S')}")
+        
+        result = await agent_handler.predict_warnings(session_id=None)
+        
+        handler_elapsed = time.time() - handler_start
+        total_elapsed = time.time() - request_start_time
+        
+        print("=" * 100)
+        print(f"[API] ✅ Agent handler completed in {handler_elapsed:.2f}s")
+        print(f"[API] 📊 Result: success={result.get('success', False)}")
+        
+        if not result.get("success"):
+            step = result.get("step", "unknown")
+            error = result.get("error", "Unknown error occurred")
+            print(f"[API] ❌ Predict Warnings FAILED at step: {step}")
+            print(f"[API] ❌ Error message: {error}")
+            print(f"[API] ⏱️  Total request time: {total_elapsed:.2f}s")
+            print("=" * 100)
+            return PredictWarningsResponse(
+                success=False,
+                error=error,
+                step=step,
+                session_id=result.get("session_id")
+            )
+        
+        report_length = len(result.get("report", ""))
+        print(f"[API] 📄 Report generated: {report_length} characters")
+        print(f"[API] ⏱️  Total request time: {total_elapsed:.2f}s")
+        print("=" * 100)
+        
+        return PredictWarningsResponse(
+            success=True,
+            report=result.get("report", ""),
+            session_id=result.get("session_id")
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        total_elapsed = time.time() - request_start_time
+        error_traceback = traceback.format_exc()
+        print("=" * 100)
+        print(f"[API] 💥 CRITICAL ERROR in predict_warnings endpoint")
+        print(f"[API] ❌ Error type: {type(e).__name__}")
+        print(f"[API] ❌ Error message: {str(e)}")
+        print(f"[API] ⏱️  Time before error: {total_elapsed:.2f}s")
+        print(f"[API] 📋 Full traceback:")
+        print(error_traceback)
+        print("=" * 100)
         raise HTTPException(status_code=500, detail=str(e))
 
 

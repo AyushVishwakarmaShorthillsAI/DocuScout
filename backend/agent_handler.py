@@ -2,7 +2,7 @@
 Agent Handler - Wraps ADK agents via HTTP client
 """
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Callable
 
 from .services.adk_client import get_adk_client
 
@@ -128,6 +128,153 @@ Please use the Consultor agent to answer this question based on the content of t
                 "error": str(e),
                 "response": f"I encountered an error: {str(e)}. Please try again.",
                 "session_id": session_id
+            }
+    
+    async def predict_warnings(
+        self,
+        session_id: Optional[str] = None,
+        progress_callback: Optional[Callable[[str], None]] = None
+    ) -> Dict[str, Any]:
+        """
+        Predict warnings by sequentially calling ClauseHunter, Researcher, and Critic agents.
+        Uses the global session_id (same session for all requests).
+        
+        Args:
+            session_id: Optional session ID (ignored - always uses global session)
+            progress_callback: Optional callback function to report progress (message: str)
+            
+        Returns:
+            Dict with success status, report content, and any errors
+        """
+        try:
+            import time
+            start_time = time.time()
+            logger.info("=" * 80)
+            logger.info("[AgentHandler] 🚀 Starting Predict Warnings workflow")
+            logger.info("=" * 80)
+            
+            adk_client = await get_adk_client()
+            
+            # Step 1: Call ClauseHunter
+            step1_start = time.time()
+            logger.info("[AgentHandler] 📋 STEP 1/3: Starting ClauseHunter agent")
+            logger.info("[AgentHandler] 📋 STEP 1/3: Message: 'hunt the clauses for all the input files'")
+            if progress_callback:
+                progress_callback("Step 1/3: Extracting clauses from documents...")
+            
+            clause_hunter_result = await adk_client.chat(
+                message="hunt the clauses for all the input files",
+                user_id="docuscout_user",
+                session_id=None  # Always use global session
+            )
+            
+            step1_elapsed = time.time() - step1_start
+            if not clause_hunter_result.get("success"):
+                error_msg = clause_hunter_result.get("error", "ClauseHunter failed")
+                logger.error(f"[AgentHandler] ❌ STEP 1/3 FAILED after {step1_elapsed:.2f}s: {error_msg}")
+                return {
+                    "success": False,
+                    "error": f"Clause extraction failed: {error_msg}",
+                    "step": "clause_hunter"
+                }
+            
+            logger.info(f"[AgentHandler] ✅ STEP 1/3 COMPLETED in {step1_elapsed:.2f}s: ClauseHunter succeeded")
+            logger.info(f"[AgentHandler] 📋 STEP 1/3: Response length: {len(clause_hunter_result.get('response', ''))} chars")
+            
+            # Step 2: Call Researcher
+            step2_start = time.time()
+            logger.info("[AgentHandler] 🔍 STEP 2/3: Starting Researcher agent")
+            logger.info("[AgentHandler] 🔍 STEP 2/3: Message: 'Research about each legal term in dynamic_playbook.json'")
+            if progress_callback:
+                progress_callback("Step 2/3: Researching legal updates...")
+            
+            researcher_result = await adk_client.chat(
+                message="Research about each legal term in dynamic_playbook.json",
+                user_id="docuscout_user",
+                session_id=None  # Always use global session
+            )
+            
+            step2_elapsed = time.time() - step2_start
+            if not researcher_result.get("success"):
+                error_msg = researcher_result.get("error", "Researcher failed")
+                logger.error(f"[AgentHandler] ❌ STEP 2/3 FAILED after {step2_elapsed:.2f}s: {error_msg}")
+                return {
+                    "success": False,
+                    "error": f"Legal research failed: {error_msg}",
+                    "step": "researcher"
+                }
+            
+            logger.info(f"[AgentHandler] ✅ STEP 2/3 COMPLETED in {step2_elapsed:.2f}s: Researcher succeeded")
+            logger.info(f"[AgentHandler] 🔍 STEP 2/3: Response length: {len(researcher_result.get('response', ''))} chars")
+            
+            # Step 3: Call Critic
+            step3_start = time.time()
+            logger.info("[AgentHandler] ⚖️  STEP 3/3: Starting Critic agent")
+            logger.info("[AgentHandler] ⚖️  STEP 3/3: Message: 'use the critic agent and tell the warnings in files'")
+            if progress_callback:
+                progress_callback("Step 3/3: Analyzing risks and generating report...")
+            
+            critic_result = await adk_client.chat(
+                message="use the critic agent and tell the warnings in files",
+                user_id="docuscout_user",
+                session_id=None  # Always use global session
+            )
+            
+            step3_elapsed = time.time() - step3_start
+            if not critic_result.get("success"):
+                error_msg = critic_result.get("error", "Critic failed")
+                logger.error(f"[AgentHandler] ❌ STEP 3/3 FAILED after {step3_elapsed:.2f}s: {error_msg}")
+                return {
+                    "success": False,
+                    "error": f"Risk analysis failed: {error_msg}",
+                    "step": "critic"
+                }
+            
+            logger.info(f"[AgentHandler] ✅ STEP 3/3 COMPLETED in {step3_elapsed:.2f}s: Critic succeeded")
+            logger.info(f"[AgentHandler] ⚖️  STEP 3/3: Response length: {len(critic_result.get('response', ''))} chars")
+            
+            # Read the final report from risk_audit_report.md
+            logger.info("[AgentHandler] 📄 Reading final report from risk_audit_report.md")
+            try:
+                from pathlib import Path
+                report_path = Path("risk_audit_report.md")
+                if report_path.exists():
+                    report_content = report_path.read_text(encoding="utf-8")
+                    logger.info(f"[AgentHandler] ✅ Successfully read risk_audit_report.md ({len(report_content)} chars)")
+                else:
+                    logger.warning("[AgentHandler] ⚠️  risk_audit_report.md not found, using agent response")
+                    report_content = critic_result.get("response", "Report generated successfully.")
+            except Exception as e:
+                logger.warning(f"[AgentHandler] ⚠️  Error reading report file: {str(e)}, using agent response")
+                report_content = critic_result.get("response", "Report generated successfully.")
+            
+            total_elapsed = time.time() - start_time
+            logger.info("=" * 80)
+            logger.info(f"[AgentHandler] 🎉 Predict Warnings workflow COMPLETED successfully in {total_elapsed:.2f}s")
+            logger.info(f"[AgentHandler] 📊 Timing breakdown:")
+            logger.info(f"[AgentHandler]    - Step 1 (ClauseHunter): {step1_elapsed:.2f}s")
+            logger.info(f"[AgentHandler]    - Step 2 (Researcher): {step2_elapsed:.2f}s")
+            logger.info(f"[AgentHandler]    - Step 3 (Critic): {step3_elapsed:.2f}s")
+            logger.info(f"[AgentHandler]    - Total: {total_elapsed:.2f}s")
+            logger.info("=" * 80)
+            
+            if progress_callback:
+                progress_callback("Analysis complete!")
+            
+            return {
+                "success": True,
+                "report": report_content,
+                "session_id": critic_result.get("session_id")
+            }
+            
+        except Exception as e:
+            logger.error(f"[AgentHandler] Error in predict_warnings: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "success": False,
+                "error": str(e),
+                "step": "unknown"
             }
 
 

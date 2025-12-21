@@ -156,8 +156,39 @@ class ADKClient:
                 "session_id": session_id
             }
         
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ HTTP error from ADK API Server: {e.response.status_code}")
+            logger.error(f"❌ Response: {e.response.text[:500] if hasattr(e.response, 'text') else 'No response text'}")
+            return {
+                "success": False,
+                "error": f"ADK API Server error ({e.response.status_code}): {str(e)}",
+                "response": f"I encountered an error: {str(e)}. Please try again.",
+                "session_id": session_id if session_id else None
+            }
+        except ValueError as e:
+            # Handle "No message in response" error from LiteLLM
+            error_msg = str(e)
+            if "No message in response" in error_msg:
+                logger.error(f"❌ LLM model returned empty response (ValueError: {error_msg})")
+                logger.error("❌ This may indicate the LLM service is unavailable or returned an invalid response")
+                return {
+                    "success": False,
+                    "error": "LLM model returned empty response. The model service may be unavailable or overloaded. Please try again.",
+                    "response": "I encountered an error: The language model service returned an empty response. Please try again later.",
+                    "session_id": session_id if session_id else None
+                }
+            else:
+                logger.error(f"❌ ValueError: {error_msg}")
+                return {
+                    "success": False,
+                    "error": f"Value error: {error_msg}",
+                    "response": f"I encountered an error: {error_msg}. Please try again.",
+                    "session_id": session_id if session_id else None
+                }
         except Exception as e:
-            logger.error(f"❌ Agent execution failed: {e}")
+            logger.error(f"❌ Agent execution failed: {type(e).__name__}: {e}")
+            import traceback
+            logger.error(f"❌ Traceback: {traceback.format_exc()}")
             return {
                 "success": False,
                 "error": str(e),
