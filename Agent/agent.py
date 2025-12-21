@@ -24,6 +24,7 @@ lite_llm_model = LiteLlm(
     api_key=os.getenv("LITELLM_PROXY_GEMINI_API_KEY")
 )
 
+
 root_agent = LlmAgent(
     name="Orchestrator",
     model=lite_llm_model,
