@@ -2,3 +2,4 @@ google-adk>=1.20.0
 google-genai>=1.51.0
 litellm>=1.80.9
 python-dotenv
+huggingface_hub>=0.20.0
