@@ -111,10 +111,11 @@ root_agent = LlmAgent(
     name="ClauseHunter",
     model=lite_llm_model,
     tools=[],
-    sub_agents=[playbook_pipeline], 
-    description="Main orchestrator.",
-    instruction="""
-    To fulfill the user request, you MUST call the tool 'PlaybookPipeline'. 
-    Wait for it to finish, and then tell the user 'Dynamic Playbook generated successfully'.
-    """
+    sub_agents=[playbook_pipeline], # PlaybookPipeline is the sub-agent
+    description="You are the ClauseHunter. You oversee the creation of the Legal Playbook.",
+    instruction="""To fulfill the user's request, you must use the 'transfer_to_agent' tool.
+    
+1. Call `transfer_to_agent(agent_name='PlaybookPipeline')`.
+2. Do NOT try to call 'PlaybookPipeline' directly as a function.
+3. Once the pipeline returns, tell the user 'Dynamic Playbook generated successfully.'"""
 )

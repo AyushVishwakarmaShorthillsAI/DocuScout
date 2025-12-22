@@ -160,7 +160,12 @@ Please use the Consultor agent to respond based on the document content."""
             logger.info("[AgentHandler] 📋 STEP 1/3: Starting ClauseHunter agent")
             logger.info("[AgentHandler] 📋 STEP 1/3: Message: 'extract and identify clauses from all the input files'")
             if progress_callback:
-                progress_callback("Step 1/3: Extracting clauses from documents...")
+                import json
+                progress_callback(json.dumps({
+                    "step": 1,
+                    "status": "in_progress",
+                    "message": "Extracting clauses from documents..."
+                }))
             
             clause_hunter_result = await adk_client.chat(
                 message="extract and identify clauses from all the input files",
@@ -180,13 +185,23 @@ Please use the Consultor agent to respond based on the document content."""
             
             logger.info(f"[AgentHandler] ✅ STEP 1/3 COMPLETED in {step1_elapsed:.2f}s: ClauseHunter succeeded")
             logger.info(f"[AgentHandler] 📋 STEP 1/3: Response length: {len(clause_hunter_result.get('response', ''))} chars")
+            if progress_callback:
+                progress_callback(json.dumps({
+                    "step": 1,
+                    "status": "complete",
+                    "message": "Clauses extracted successfully"
+                }))
             
             # Step 2: Call Researcher
             step2_start = time.time()
             logger.info("[AgentHandler] 🔍 STEP 2/3: Starting Researcher agent")
             logger.info("[AgentHandler] 🔍 STEP 2/3: Message: 'Review and gather information about each legal term in dynamic_playbook.json'")
             if progress_callback:
-                progress_callback("Step 2/3: Researching legal updates...")
+                progress_callback(json.dumps({
+                    "step": 2,
+                    "status": "in_progress",
+                    "message": "Researching legal amendments and updates..."
+                }))
             
             researcher_result = await adk_client.chat(
                 message="Review and gather information about each legal term in dynamic_playbook.json",
@@ -206,13 +221,23 @@ Please use the Consultor agent to respond based on the document content."""
             
             logger.info(f"[AgentHandler] ✅ STEP 2/3 COMPLETED in {step2_elapsed:.2f}s: Researcher succeeded")
             logger.info(f"[AgentHandler] 🔍 STEP 2/3: Response length: {len(researcher_result.get('response', ''))} chars")
+            if progress_callback:
+                progress_callback(json.dumps({
+                    "step": 2,
+                    "status": "complete",
+                    "message": "Legal research completed"
+                }))
             
             # Step 3: Call RiskAuditor (formerly Critic)
             step3_start = time.time()
             logger.info("[AgentHandler] ⚖️  STEP 3/3: Starting RiskAuditor agent")
             logger.info("[AgentHandler] ⚖️  STEP 3/3: Message: 'analyze compliance status across different files'")
             if progress_callback:
-                progress_callback("Step 3/3: Analyzing compliance and generating report...")
+                progress_callback(json.dumps({
+                    "step": 3,
+                    "status": "in_progress",
+                    "message": "Analyzing risks and generating report..."
+                }))
             
             risk_auditor_result = await adk_client.chat(
                 message="analyze compliance status across different files",
@@ -232,6 +257,12 @@ Please use the Consultor agent to respond based on the document content."""
             
             logger.info(f"[AgentHandler] ✅ STEP 3/3 COMPLETED in {step3_elapsed:.2f}s: RiskAuditor succeeded")
             logger.info(f"[AgentHandler] ⚖️  STEP 3/3: Response length: {len(risk_auditor_result.get('response', ''))} chars")
+            if progress_callback:
+                progress_callback(json.dumps({
+                    "step": 3,
+                    "status": "complete",
+                    "message": "Risk analysis completed"
+                }))
             
             # Read the final report from risk_audit_report.md
             logger.info("[AgentHandler] 📄 Reading final report from risk_audit_report.md")
