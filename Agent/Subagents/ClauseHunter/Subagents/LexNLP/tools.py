@@ -1,8 +1,4 @@
 import lexnlp.extract.en.acts
-import lexnlp.extract.en.amounts
-import lexnlp.extract.en.citations
-import lexnlp.extract.en.dates
-import lexnlp.extract.en.money
 from PyPDF2 import PdfReader
 import glob
 import os
@@ -38,9 +34,17 @@ async def run_lexnlp_on_db(tool_context: ToolContext, db_path: str = "DB") -> st
             
             # Extract Acts
             try:
-                acts = list(lexnlp.extract.en.acts.get_acts(text))
-                file_data['acts'] = [str(act) for act in acts]
-            except: file_data['acts'] = []
+                acts_list = list(lexnlp.extract.en.acts.get_acts(text))
+                # Only keep the Act Name/Value, ignore location_start/end
+                cleaned_acts = []
+                for act in acts_list:
+                    if isinstance(act, dict):
+                        name = act.get("act_name") or act.get("value")
+                        if name:
+                            cleaned_acts.append(name)
+                file_data['acts'] = sorted(list(set(cleaned_acts))) # Deduplicate
+            except: file_data['acts'] = []                
+
             results[filename] = file_data
             
         except Exception as e:

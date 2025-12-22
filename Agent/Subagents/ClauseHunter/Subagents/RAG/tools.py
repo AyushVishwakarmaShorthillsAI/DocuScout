@@ -48,7 +48,7 @@ async def run_rag_extraction_on_db(tool_context: ToolContext, query_focus: str =
     # 2. Run extraction query with strict instructions to only use current document
     prompt = f"""
     Analyze ONLY the documents currently in the store. 
-    Identify key information regarding Constitutional/Statutory, Legal Provisions, and specific legal entities.
+    Identify key information regarding {query_focus} and specific legal entities.
 
     IMPORTANT: Only extract information that is EXPLICITLY mentioned in the documents.
     Do NOT infer, assume, or add information that is not present in the source documents.
@@ -70,7 +70,7 @@ async def run_rag_extraction_on_db(tool_context: ToolContext, query_focus: str =
     
     try:
         response = client.models.generate_content(
-            model=os.getenv("GEMINI_MODEL"),
+            model="gemini-2.5-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 tools=[
