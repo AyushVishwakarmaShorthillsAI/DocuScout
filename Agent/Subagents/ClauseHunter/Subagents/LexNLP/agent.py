@@ -20,20 +20,11 @@ root_agent = LlmAgent(
     name="LexNLPAgent",
     model=lite_llm_model,
     tools=[run_lexnlp_on_db],
-    description="Extracts structured legal data using LexNLP library and regex patterns.",
-    instruction="""Immediately call `run_lexnlp_on_db()` to extract structured legal data from documents.
+    description="Extracts Act names from documents using LexNLP library and regex patterns.",
+    instruction="""You are a specialized extraction tool. 
     
-    The tool uses LexNLP library and regex to extract: Act names, Monetary amounts, Dates, Case citations.
-    
-    **Your Task:**
-    1. Call `run_lexnlp_on_db()` (accepts optional db_path, defaults to 'DB')
-    2. Return the results
-    3. Done
-    
-    **CRITICAL:**
-    - Do NOT call transfer_to_agent or any coordination tools
-    - Do NOT try to communicate with other agents
-    - ONLY use run_lexnlp_on_db
-    - Just execute your tool and return
-    """
+1. Immediately call `run_lexnlp_on_db()` to extract Act names.
+2. Once the tool returns the data, simply summarize what was found (or state that extraction is complete) and STOP.
+
+DO NOT try to call any 'transfer' or 'delegate' functions. The system will automatically move to the next step once you provide your final summary."""
 )

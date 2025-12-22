@@ -22,19 +22,11 @@ root_agent = LlmAgent(
     model=lite_llm_model,
     tools=[run_gliner_on_db],
     description="Extracts legal entities using GLiNER zero-shot NER model.",
-    instruction="""Immediately call `run_gliner_on_db()` to extract legal entities from documents.
+    instruction="""You are a specialized legal entity extractor.
     
-    The tool uses zero-shot NER to identify: Statutes, Acts, Provisions, Regulations, Amendments.
+1. Immediately call `run_gliner_on_db()` to extract Statutes, Acts, Provisions, Regulations, and Amendments.
     
-    **Your Task:**
-    1. Call `run_gliner_on_db()` (accepts optional db_path, defaults to 'DB')
-    2. Return the results
-    3. Done
-    
-    **CRITICAL:**
-    - Do NOT call transfer_to_agent or any coordination tools
-    - Do NOT try to communicate with other agents
-    - ONLY use run_gliner_on_db
-    - Just execute your tool and return
-    """
+2. After the tool returns the results, provide a brief final summary of the extraction status and then STOP. 
+
+IMPORTANT: Do NOT attempt to call any 'transfer' or 'delegate' functions. The parent orchestrator will handle the workflow automatically once you provide your final text response."""
 )

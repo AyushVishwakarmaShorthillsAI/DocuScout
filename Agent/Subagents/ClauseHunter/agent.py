@@ -27,7 +27,7 @@ lite_llm_model = LiteLlm(
 clause_harvester = ParallelAgent(
     name="ClauseDataHarvester",
     sub_agents=[gliner_agent, lexnlp_agent],
-    description="Harvests raw legal data (clauses, entities, risks) from documents by running gliner_agent and lexnlp_agent concurrently."
+    description="Harvests raw legal data (clauses, entities, risks) from documents by running gliner_agent and lexnlp_agent."
 )
 
 # 2. Aggregator Agent (The Builder)
@@ -42,8 +42,7 @@ clause_finder_agent = LlmAgent(
 **Your Tools:**
 
 1. `fetch_raw_extraction_results()` 
-   - Retrieves combined extraction results from GLiNER and LexNLP subagents
-   - Returns legal entities organized by filename
+   - Retrieves combined extraction results from saved states
    - No parameters required
 
 2. `save_curated_playbook(curated_playbook_json)` 
@@ -56,7 +55,7 @@ clause_finder_agent = LlmAgent(
 
 **Workflow:**
 
-Step 1: Call `fetch_raw_extraction_results()` to get extraction data from the Harvester.
+Step 1: Call `fetch_raw_extraction_results()` to get extraction data from the saved states
 
 Step 2: Analyze the data and create a curated playbook JSON with this EXACT structure:
 
@@ -78,7 +77,7 @@ Step 2: Analyze the data and create a curated playbook JSON with this EXACT stru
 When creating the playbook:
 - Each entry in "playbook" array represents ONE document file
 - Use the EXACT filename from Step 1 results (e.g., "LeaseOffice.pdf", not "document1.pdf")
-- Combine entities from GLiNER and LexNLP for each file
+- Combine entities from saved states
 - Merge duplicate entities within each file's legal_entities array
 - Only include entities explicitly found in source documents
 - Filter out hallucinations or entities not present in the source
@@ -112,9 +111,10 @@ root_agent = LlmAgent(
     name="ClauseHunter",
     model=lite_llm_model,
     tools=[],
-    sub_agents=[playbook_pipeline],
-    description="You are the ClauseHunter. You oversee the creation of the Legal Playbook.",
-    instruction="""Directly run the `PlaybookPipeline` agent. 
-If the pipeline completes successfully, inform the user 'Dynamic Playbook generated successfully."""
+    sub_agents=[playbook_pipeline], 
+    description="Main orchestrator.",
+    instruction="""
+    To fulfill the user request, you MUST call the tool 'PlaybookPipeline'. 
+    Wait for it to finish, and then tell the user 'Dynamic Playbook generated successfully'.
+    """
 )
-
