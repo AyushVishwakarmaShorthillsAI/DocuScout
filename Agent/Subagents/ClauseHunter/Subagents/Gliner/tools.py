@@ -50,13 +50,21 @@ async def run_gliner_on_db(tool_context: ToolContext, db_path: str = "DB") -> st
                 file_entities.append({
                     "text": entity["text"],
                     "label": entity["label"],
-                    "score": round(entity["score"], 3)
                 })
             
             results[filename] = file_entities
             
         except Exception as e:
             results[filename] = {"error": str(e)}
+
+    # Save to local file
+    try:
+        with open("Gliner_res.json", "w", encoding="utf-8") as f:
+            import json
+            json.dump(results, f, indent=4, default=str)
+        print("Saved raw GLiNER results to Gliner_res.json")
+    except Exception as e:
+        print(f"Error saving Gliner_res.json: {e}")
 
     tool_context.state["clausehunter:gliner"] = results
     return f"GLiNER extraction complete. Processed {len(pdf_files)} files. Raw results saved to session state."

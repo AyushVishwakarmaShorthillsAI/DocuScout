@@ -447,6 +447,17 @@ body {
   animation: spin 1s linear infinite;
 }
 
+.predict-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  margin-right: 0.5rem;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

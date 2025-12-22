@@ -184,16 +184,31 @@ async def read_playbook_entities(tool_context: ToolContext) -> str:
     playbook_keys = list(playbook_data.keys()) if isinstance(playbook_data, dict) else []
     logger.info(f"[Researcher Tools] 📋 Playbook structure: {len(playbook_keys)} top-level keys")
     
+    # Support for Fallback Playbook Structure (list of clauses)
+    if "clauses" in playbook_data and isinstance(playbook_data["clauses"], list):
+        logger.info("[Researcher Tools] ℹ️  Detected fallback playbook structure (flat list of clauses)")
+        for clause in playbook_data["clauses"]:
+            if isinstance(clause, dict):
+                # Check 'name' (used in fallback) or 'text'
+                entity_name = clause.get("name") or clause.get("text")
+                if entity_name:
+                    entities.add(entity_name)
+                    
+    # Support for Standard LLM-Curated Playbook (nested by filename)
     for filename, content in playbook_data.items():
+        if filename == "clauses": continue # already handled above
+        
         if isinstance(content, dict):
-            for category in ["laws", "acts", "regulations"]:
+            for category in ["laws", "acts", "regulations", "statutes"]:
                 if category in content:
                     items = content[category]
                     if isinstance(items, list):
                         logger.debug(f"[Researcher Tools]   Processing {len(items)} items in {category} for {filename}")
                         for item in items:
-                            if isinstance(item, dict) and "text" in item:
-                                entities.add(item["text"])
+                            if isinstance(item, dict):
+                                entity_name = item.get("text") or item.get("name")
+                                if entity_name:
+                                    entities.add(entity_name)
     
     unique_list = sorted(list(entities))
     tool_context.state["researcher:targets"] = unique_list

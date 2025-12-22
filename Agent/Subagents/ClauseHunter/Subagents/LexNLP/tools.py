@@ -41,23 +41,19 @@ async def run_lexnlp_on_db(tool_context: ToolContext, db_path: str = "DB") -> st
                 acts = list(lexnlp.extract.en.acts.get_acts(text))
                 file_data['acts'] = [str(act) for act in acts]
             except: file_data['acts'] = []
-
-            # Extract Money
-            try:
-                money = list(lexnlp.extract.en.money.get_money(text))
-                file_data['money'] = [f"{m[0]} {m[1]}" for m in money if m]
-            except: file_data['money'] = []
-            
-            # Extract Dates
-            try:
-                dates = list(lexnlp.extract.en.dates.get_dates(text))
-                file_data['dates'] = [str(d) for d in dates]
-            except: file_data['dates'] = []
-
             results[filename] = file_data
             
         except Exception as e:
             results[filename] = {"error": str(e)}
+
+    # Save to local file
+    try:
+        with open("LexNLP_res.json", "w", encoding="utf-8") as f:
+            import json
+            json.dump(results, f, indent=4, default=str)
+        print("Saved raw LexNLP results to LexNLP_res.json")
+    except Exception as e:
+        print(f"Error saving LexNLP_res.json: {e}")
 
     tool_context.state["clausehunter:lexnlp"] = results
     return f"LexNLP extraction complete. Processed {len(pdf_files)} files. Raw results saved to session state."

@@ -12,7 +12,7 @@ load_dotenv()
 litellm.use_litellm_proxy = True
 
 lite_llm_model = LiteLlm(
-    model="gemini-2.5-flash",
+    model=os.getenv("GEMINI_MODEL"),
     api_base=os.getenv("LITELLM_PROXY_API_BASE"),
     api_key=os.getenv("LITELLM_PROXY_GEMINI_API_KEY")
 )

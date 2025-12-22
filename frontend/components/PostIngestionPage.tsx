@@ -17,6 +17,7 @@ export default function PostIngestionPage({ sessionId }: PostIngestionPageProps)
   const [progressMessage, setProgressMessage] = useState<string>('')
   const [showReportPopup, setShowReportPopup] = useState(false)
   const [reportContent, setReportContent] = useState<string>('')
+  const [hasReport, setHasReport] = useState(false) // Track if report is ready
 
   const handleQASend = async () => {
     const query = qaInput.trim()
@@ -63,12 +64,19 @@ export default function PostIngestionPage({ sessionId }: PostIngestionPageProps)
   }
 
   const handlePredictWarnings = async () => {
+    // If report exists, show it instead of regenerating
+    if (hasReport && reportContent) {
+      setShowReportPopup(true)
+      return
+    }
+    
     if (isPredicting) return
     
     setIsPredicting(true)
     setProgressMessage('Starting analysis... This may take several minutes.')
     setShowReportPopup(false)
     setReportContent('')
+    setHasReport(false)
     
     try {
       // Call the predict warnings API
@@ -77,17 +85,19 @@ export default function PostIngestionPage({ sessionId }: PostIngestionPageProps)
       
       if (response.success && response.report) {
         setReportContent(response.report)
-        setShowReportPopup(true)
-        setProgressMessage('Analysis complete!')
+        setHasReport(true) // Mark report as ready
+        setProgressMessage('') // Clear progress message
       } else {
         const errorMsg = response.error || 'Failed to generate report'
         const step = response.step ? ` (Failed at: ${response.step})` : ''
         setProgressMessage(`Error: ${errorMsg}${step}`)
+        setHasReport(false)
         alert(`Failed to generate report: ${errorMsg}${step}`)
       }
     } catch (error: any) {
       const errorMsg = error.message || 'An unexpected error occurred'
       setProgressMessage(`Error: ${errorMsg}`)
+      setHasReport(false)
       alert(`Failed to generate report: ${errorMsg}`)
     } finally {
       setIsPredicting(false)
@@ -168,8 +178,16 @@ export default function PostIngestionPage({ sessionId }: PostIngestionPageProps)
           >
             {isPredicting ? (
               <>
-                <div className="spinner"></div>
+                <div className="predict-spinner"></div>
                 Processing...
+              </>
+            ) : hasReport ? (
+              <>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path d="M10 2L3 7L10 12L17 7L10 2Z" fill="currentColor"/>
+                  <path d="M3 13L10 18L17 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                View Report
               </>
             ) : (
               <>
@@ -181,7 +199,7 @@ export default function PostIngestionPage({ sessionId }: PostIngestionPageProps)
             )}
           </button>
           
-          {progressMessage && (
+          {progressMessage && !hasReport && (
             <div className="progress-message">
               <div className="progress-spinner"></div>
               <span>{progressMessage}</span>

@@ -85,6 +85,18 @@ async def ingest_documents(
         if not files:
             raise HTTPException(status_code=400, detail="No files provided")
         
+        
+        # Clean the DB folder before saving new files
+        # Only delete files, keep the folder itself
+        print(f"[API] Cleaning DB folder: {DB_FOLDER}")
+        for item in DB_FOLDER.iterdir():
+            if item.is_file():
+                try:
+                    item.unlink()
+                    print(f"[API] Deleted old file: {item.name}")
+                except Exception as e:
+                    print(f"[API] Error deleting {item.name}: {e}")
+
         # Save files to DB folder
         saved_files = []
         for file in files:

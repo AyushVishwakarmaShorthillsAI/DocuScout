@@ -85,28 +85,72 @@ async def fetch_raw_extraction_results(tool_context: ToolContext) -> str:
         "summary_lexnlp": simplified_lexnlp,
         "raw_rag": rag_res
     }
+
+    # DEBUG: Save payload to disk for inspection
+    try:
+        debug_path = os.path.join("DB", "debug_clausehunter_payload.json") # Save in DB so it's visible easily
+        with open(debug_path, "w", encoding="utf-8") as f:
+            json.dump(combined_data, f, indent=2, default=str)
+        logger.info(f"[ClauseHunter Tools] 🐞 Saved debug payload to {debug_path}")
+    except Exception as e:
+        logger.error(f"[ClauseHunter Tools] ❌ Failed to save debug payload: {e}")
     
     # Final Safety Net: Hard Truncate if still massive
-    logger.info("[ClauseHunter Tools] 🔄 Serializing combined data to JSON...")
-    dump_start = time.time()
-    dumped = json.dumps(combined_data, default=str)
-    dump_elapsed = time.time() - dump_start
-    dumped_length = len(dumped)
+    # --- CONVERT TO MARKDOWN SUMMARY (Sanitization) ---
+    logger.info("[ClauseHunter Tools] 🔄 Converting payload to Markdown to avoid Safety/Size errors...")
     
-    logger.info(f"[ClauseHunter Tools] ✅ JSON serialization completed in {dump_elapsed:.2f}s")
-    logger.info(f"[ClauseHunter Tools] 📊 Serialized JSON length: {dumped_length} characters")
+    lines = ["**Extraction Results Summary**\n"]
     
-    # Drastic reduction to 10k chars to rule out size/timeout issues.
-    if len(dumped) > 10000:
-        logger.warning(f"[ClauseHunter Tools] ⚠️  JSON too large ({dumped_length} chars), truncating to 10000 chars")
-        truncated = dumped[:10000] + "... [TRUNCATED - PLEASE FOCUS ON AVAILABLE DATA]"
-        elapsed = time.time() - function_start
-        logger.info(f"[ClauseHunter Tools] ⏱️  Function completed in {elapsed:.2f}s (truncated)")
-        return truncated
+    # helper to recursively print dicts/lists
+    def dict_to_lines(d, indent=0):
+        res = []
+        prefix = "  " * indent
+        if isinstance(d, dict):
+            for k, v in d.items():
+                if isinstance(v, (list, set)):
+                    if v:
+                        res.append(f"{prefix}- **{k}**:")
+                        for item in v:
+                            res.append(f"{prefix}  - {item}")
+                elif isinstance(v, dict):
+                    res.append(f"{prefix}- **{k}**:")
+                    res.extend(dict_to_lines(v, indent + 1))
+                else:
+                    res.append(f"{prefix}- **{k}**: {v}")
+        return res
+
+    lines.append("### Gliner Entities")
+    lines.extend(dict_to_lines(compressed_gliner))
+    
+    lines.append("\n### LexNLP Entities")
+    lines.extend(dict_to_lines(simplified_lexnlp))
+    
+    lines.append("\n### RAG Context")
+    # Truncate RAG if too long (safe limit)
+    rag_text = str(rag_res)
+    if len(rag_text) > 5000:
+        rag_text = rag_text[:5000] + "... [TRUNCATED]"
+    lines.append(rag_text)
+    
+    final_output = "\n".join(lines)
+    
+    # Save the MARKDOWN debug payload
+    try:
+        debug_md_path = os.path.join("DB", "debug_clausehunter_payload.md")
+        with open(debug_md_path, "w", encoding="utf-8") as f:
+            f.write(final_output)
+        logger.info(f"[ClauseHunter Tools] 🐞 Saved debug Markdown payload to {debug_md_path}")
+    except Exception:
+        pass
+
+    # Final Safety Check: Length
+    if len(final_output) > 25000:
+         logger.warning(f"[ClauseHunter Tools] ⚠️  Markdown too large ({len(final_output)} chars), truncating.")
+         return final_output[:25000] + "\n... [TRUNCATED]"
     
     elapsed = time.time() - function_start
     logger.info(f"[ClauseHunter Tools] ✅ fetch_raw_extraction_results completed in {elapsed:.2f}s")
-    return dumped
+    return final_output
 
 async def save_curated_playbook(tool_context: ToolContext, curated_playbook_json: str) -> str:
     """
@@ -153,70 +197,9 @@ async def save_curated_playbook(tool_context: ToolContext, curated_playbook_json
         logger.error(f"[ClauseHunter Tools] 📋 Traceback:\n{traceback.format_exc()}")
         return f"Error saving playbook: {str(e)}"
 
-async def create_fallback_playbook(tool_context: ToolContext) -> str:
-    """
-    Creates a basic playbook directly from raw extraction results without LLM processing.
-    This is a fallback when the LLM fails or returns empty responses.
-    
-    Args:
-        tool_context: The execution context.
-        
-    Returns:
-        Status message.
-    """
-    try:
-        gliner_res = tool_context.state.get("clausehunter:gliner", {})
-        lexnlp_res = tool_context.state.get("clausehunter:lexnlp", {})
-        
-        clauses = []
-        
-        # Extract from GLiNER
-        if isinstance(gliner_res, dict):
-            for filename, entities in gliner_res.items():
-                if isinstance(entities, list):
-                    for entity in entities:
-                        if isinstance(entity, dict) and "text" in entity and "label" in entity:
-                            clauses.append({
-                                "name": entity["text"],
-                                "type": entity["label"].title(),
-                                "sources": ["GLiNER"],
-                                "contexts": [f"Extracted from {filename}"]
-                            })
-        
-        # Extract from LexNLP
-        if isinstance(lexnlp_res, dict):
-            for filename, data in lexnlp_res.items():
-                if isinstance(data, dict):
-                    for category, items in data.items():
-                        if isinstance(items, list):
-                            for item in items:
-                                if isinstance(item, str) and item:
-                                    clauses.append({
-                                        "name": item,
-                                        "type": category.title(),
-                                        "sources": ["LexNLP"],
-                                        "contexts": [f"Extracted from {filename}"]
-                                    })
-        
-        # Remove duplicates
-        seen = set()
-        unique_clauses = []
-        for clause in clauses:
-            key = (clause["name"], clause["type"])
-            if key not in seen:
-                seen.add(key)
-                unique_clauses.append(clause)
-        
-        playbook_data = {"clauses": unique_clauses}
-        tool_context.state["clausehunter:playbook"] = playbook_data
-        return f"Fallback playbook created with {len(unique_clauses)} entities from raw extraction data."
-    except Exception as e:
-        return f"Error creating fallback playbook: {str(e)}"
-
 async def export_playbook_to_disk(tool_context: ToolContext, output_filename: str = "dynamic_playbook.json") -> str:
     """
     Reads the 'clausehunter:playbook' from session state and writes it to a local JSON file.
-    If no playbook exists, tries to create a fallback playbook from raw data.
     
     Args:
         tool_context: The execution context.
@@ -232,18 +215,9 @@ async def export_playbook_to_disk(tool_context: ToolContext, output_filename: st
     logger.info("[ClauseHunter Tools] 🔍 Reading playbook from session state...")
     playbook_data = tool_context.state.get("clausehunter:playbook")
     
-    # If no playbook exists, try to create fallback
     if not playbook_data:
-        logger.warning("[ClauseHunter Tools] ⚠️  No playbook in session state, creating fallback...")
-        fallback_start = time.time()
-        fallback_result = await create_fallback_playbook(tool_context)
-        fallback_elapsed = time.time() - fallback_start
-        logger.info(f"[ClauseHunter Tools] 🔄 Fallback creation completed in {fallback_elapsed:.2f}s: {fallback_result}")
-        
-        playbook_data = tool_context.state.get("clausehunter:playbook")
-        if not playbook_data:
-            logger.error("[ClauseHunter Tools] ❌ Fallback creation failed, cannot export")
-            return f"Error: {fallback_result}. Cannot export playbook."
+        logger.error("[ClauseHunter Tools] ❌ No playbook found in session state. Cannot export.")
+        return "Error: No playbook found in session state. Please run ClauseFinder to generate it first."
     else:
         logger.info("[ClauseHunter Tools] ✅ Found playbook in session state")
     

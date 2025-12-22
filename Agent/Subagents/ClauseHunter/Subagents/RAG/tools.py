@@ -48,7 +48,7 @@ async def run_rag_extraction_on_db(tool_context: ToolContext, query_focus: str =
     # 2. Run extraction query with strict instructions to only use current document
     prompt = f"""
     Analyze ONLY the documents currently in the store. 
-    Identify key information regarding {query_focus} and specific legal entities.
+    Identify key information regarding Constitutional/Statutory, Legal Provisions, and specific legal entities.
 
     IMPORTANT: Only extract information that is EXPLICITLY mentioned in the documents.
     Do NOT infer, assume, or add information that is not present in the source documents.
@@ -70,7 +70,7 @@ async def run_rag_extraction_on_db(tool_context: ToolContext, query_focus: str =
     
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=os.getenv("GEMINI_MODEL"),
             contents=prompt,
             config=types.GenerateContentConfig(
                 tools=[
@@ -84,7 +84,46 @@ async def run_rag_extraction_on_db(tool_context: ToolContext, query_focus: str =
         )
         # Handle empty responses gracefully
         if response and hasattr(response, 'text') and response.text:
-            tool_context.state["clausehunter:rag"] = response.text
+            output_text = response.text
+            
+            # Extract Citations (Grounding Metadata)
+            citations = []
+            try:
+                if (hasattr(response, 'candidates') and 
+                    response.candidates and 
+                    hasattr(response.candidates[0], 'grounding_metadata') and 
+                    response.candidates[0].grounding_metadata and 
+                    hasattr(response.candidates[0].grounding_metadata, 'grounding_chunks')):
+                    
+                    for chunk in response.candidates[0].grounding_metadata.grounding_chunks:
+                        if hasattr(chunk, 'web') and chunk.web:
+                            citations.append(f"Source: {chunk.web.title} ({chunk.web.uri})")
+                        elif hasattr(chunk, 'retrieved_context') and chunk.retrieved_context:
+                            # Context from File Search
+                            title = getattr(chunk.retrieved_context, 'title', 'Unknown File')
+                            uri = getattr(chunk.retrieved_context, 'uri', '')
+                            citations.append(f"Source: {title} (URI: {uri})")
+            except Exception as e:
+                print(f"Error extracting citations: {e}")
+            
+            # Append citations to output if found
+            if citations:
+                unique_citations = list(set(citations))
+                output_text += "\n\n**Sources:**\n" + "\n".join(unique_citations)
+
+            # Save to local file
+            try:
+                with open("RAG_res.json", "w", encoding="utf-8") as f:
+                    import json
+                    json.dump({
+                        "response": response.text,
+                        "citations": citations
+                    }, f, indent=4, default=str)
+                print("Saved raw RAG results to RAG_res.json")
+            except Exception as e:
+                print(f"Error saving RAG_res.json: {e}")
+
+            tool_context.state["clausehunter:rag"] = output_text
             return "RAG extraction complete. Insights saved to session state."
         else:
             # Empty response - return empty string instead of error
