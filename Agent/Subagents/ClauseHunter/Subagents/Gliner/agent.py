@@ -12,7 +12,7 @@ load_dotenv()
 litellm.use_litellm_proxy = True
 
 lite_llm_model = LiteLlm(
-    model="hackathon-gemini-2.5-flash",
+    model=os.getenv("GEMINI_MODEL"),
     api_base=os.getenv("LITELLM_PROXY_API_BASE"),
     api_key=os.getenv("LITELLM_PROXY_GEMINI_API_KEY")
 )
@@ -21,6 +21,20 @@ root_agent = LlmAgent(
     name="GlinerAgent",
     model=lite_llm_model,
     tools=[run_gliner_on_db],
-    description="Specialized agent using the GLiNER model (Zero-shot NER) to extract a wide range of legal entities.",
-    instruction="Use the `run_gliner_on_db` tool to extract broad legal entities from the documents. The tool accepts an optional `db_path` parameter (defaults to 'DB') which points to the folder containing the PDF files. It uses a zero-shot NER model to identify labels such as 'statute', 'act', 'provision', 'regulation', and 'amendment'."
+    description="Extracts legal entities using GLiNER zero-shot NER model.",
+    instruction="""Immediately call `run_gliner_on_db()` to extract legal entities from documents.
+    
+    The tool uses zero-shot NER to identify: Statutes, Acts, Provisions, Regulations, Amendments.
+    
+    **Your Task:**
+    1. Call `run_gliner_on_db()` (accepts optional db_path, defaults to 'DB')
+    2. Return the results
+    3. Done
+    
+    **CRITICAL:**
+    - Do NOT call transfer_to_agent or any coordination tools
+    - Do NOT try to communicate with other agents
+    - ONLY use run_gliner_on_db
+    - Just execute your tool and return
+    """
 )

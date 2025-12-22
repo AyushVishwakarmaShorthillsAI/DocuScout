@@ -3,7 +3,7 @@ import json
 
 async def fetch_raw_extraction_results(tool_context: ToolContext) -> str:
     """
-    Fetches the raw results from all ClauseHunter subagents (Gliner, LexNLP, RAG)
+    Fetches the raw results from ClauseHunter subagents (GLiNER, LexNLP)
     and returns them as a human-readable summary organized by filename.
     
     Args:
@@ -14,7 +14,7 @@ async def fetch_raw_extraction_results(tool_context: ToolContext) -> str:
     """
     gliner_res = tool_context.state.get("clausehunter:gliner", {})
     lexnlp_res = tool_context.state.get("clausehunter:lexnlp", {})
-    rag_res = tool_context.state.get("clausehunter:rag", "")
+    # rag_res = tool_context.state.get("clausehunter:rag", "")  # RAG disabled for now
     
     # Build a readable summary organized by filename
     summary = "## Document Extraction Results\n\n"
@@ -61,13 +61,14 @@ async def fetch_raw_extraction_results(tool_context: ToolContext) -> str:
         else:
             summary += "No entities found in this file.\n\n"
     
-    # RAG Summary (applies to all documents)
-    if rag_res and isinstance(rag_res, str) and rag_res.strip():
-        summary += "### Additional Context (RAG Analysis)\n\n"
-        if len(rag_res) > 800:
-            summary += rag_res[:800] + "...\n\n"
-        else:
-            summary += rag_res + "\n\n"
+    
+    # RAG Summary (disabled for now)
+    # if rag_res and isinstance(rag_res, str) and rag_res.strip():
+    #     summary += "### Additional Context (RAG Analysis)\n\n"
+    #     if len(rag_res) > 800:
+    #         summary += rag_res[:800] + "...\n\n"
+    #     else:
+    #         summary += rag_res + "\n\n"
     
     summary += "---\n\n"
     summary += "**Instructions**: Create a playbook JSON using the EXACT filenames shown above (e.g., `LeaseOffice.pdf`, not `document1.pdf`).\n"

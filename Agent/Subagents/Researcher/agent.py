@@ -11,7 +11,7 @@ load_dotenv()
 litellm.use_litellm_proxy = True
 
 lite_llm_model = LiteLlm(
-    model="hackathon-gemini-2.5-flash",
+    model=os.getenv("GEMINI_MODEL"),
     api_base=os.getenv("LITELLM_PROXY_API_BASE"),
     api_key=os.getenv("LITELLM_PROXY_GEMINI_API_KEY")
 )
@@ -93,6 +93,9 @@ root_agent = LlmAgent(
     - Each law object must have: law_name, description, status, latest_change, source
     - Group laws by their source filename (use the filenames from step 1)
     - If a file has multiple laws, they should all be in the "laws" array for that file
+    - **CRITICAL**: ONLY use the tools provided to you (read_playbook_entities, batch_search_legal_updates, save_compliance_updates)
+    - DO NOT call tools from other agents or invent tool names
+    - DO NOT try to call RiskAuditor or any other agent's tools
     
     6. **Save**: Call `save_compliance_updates(json_string)` with your JSON array.
     

@@ -9,7 +9,7 @@ import litellm
 
 from .Subagents.Gliner.agent import root_agent as gliner_agent
 from .Subagents.LexNLP.agent import root_agent as lexnlp_agent
-from .Subagents.RAG.agent import root_agent as rag_agent
+# from .Subagents.RAG.agent import root_agent as rag_agent  # RAG disabled for now
 from .tools import fetch_raw_extraction_results, save_curated_playbook, export_playbook_to_disk
 
 load_dotenv()
@@ -17,7 +17,7 @@ load_dotenv()
 litellm.use_litellm_proxy = True
 
 lite_llm_model = LiteLlm(
-    model="hackathon-gemini-2.5-flash",
+    model=os.getenv("GEMINI_MODEL"),
     api_base=os.getenv("LITELLM_PROXY_API_BASE"),
     api_key=os.getenv("LITELLM_PROXY_GEMINI_API_KEY")
 )
@@ -27,52 +27,74 @@ lite_llm_model = LiteLlm(
 clause_harvester = ParallelAgent(
     name="ClauseDataHarvester",
     sub_agents=[gliner_agent, lexnlp_agent],
-    description="Harvests raw legal data (clauses, entities, risks) from documents by running Gliner, LexNLP, and RAG concurrently."
+    description="Harvests raw legal data (clauses, entities, risks) from documents by running gliner_agent and lexnlp_agent concurrently."
 )
 
 # 2. Aggregator Agent (The Builder)
 # This agent collects the raw data and builds the final playbook.
 clause_finder_agent = LlmAgent(
-    name="ClauseFinder",
+    name="ClauseFinderAgent",
     model=lite_llm_model,
     tools=[fetch_raw_extraction_results, save_curated_playbook, export_playbook_to_disk],
     description="Fetches raw data from the session, filters/deduplicates it, and saves the final Playbook.",
-    instruction="""
-    You are the 'ClauseFinder'. Your goal is to build a high-quality 'Dynamic Playbook' from raw extraction data.
-    
-    Workflow:
-    1. Call `fetch_raw_extraction_results()` to get the combined outputs from the Harvester.
-    2. Analyze the data and create a curated playbook following the EXACT structure below:
-       - Merge duplicate clauses.
-       - Only include entities that are explicitly found in the source documents.
-       - Filter out any entities that appear to be hallucinations or not present in the source.
-    3. Call `save_curated_playbook(curated_playbook_json)` to save the result.
-    4. Call `export_playbook_to_disk()` to write the file.
-    
-    REQUIRED JSON STRUCTURE:
-    Your playbook MUST follow this exact format:
-    
-    {
-        "playbook": [
-            {
-                "filename": "document1.pdf",
-                "legal_entities": ["California Consumer Privacy Act", "GDPR", "Section 7 (Warranties)"]
-            },
-            {
-                "filename": "document2.pdf",
-                "legal_entities": ["Minimum Wages Act", "Article 1", "Clause 3.2"]
-            }
-        ]
-    }
-    
-    IMPORTANT:
-    - Each entry in the "playbook" array represents ONE document file
-    - "filename" must be the exact PDF filename from the extraction results
-    - "legal_entities" is an array of ALL unique legal terms, clauses, acts, and provisions found in that file
-    - Combine entities from GLiNER, LexNLP, and RAG for each file
-    - Remove duplicates within each file's legal_entities array
-    - Do NOT create nested structures or add extra fields
-    """
+    instruction="""You are the ClauseFinderAgent. Your goal is to build a high-quality 'Dynamic Playbook' from raw extraction data.
+
+**Your Tools:**
+
+1. `fetch_raw_extraction_results()` 
+   - Retrieves combined extraction results from GLiNER and LexNLP subagents
+   - Returns legal entities organized by filename
+   - No parameters required
+
+2. `save_curated_playbook(curated_playbook_json)` 
+   - Saves your curated playbook JSON to session state
+   - Parameter: curated_playbook_json (string) - The playbook JSON as a string
+
+3. `export_playbook_to_disk()` 
+   - Writes the saved playbook to `dynamic_playbook.json` file
+   - No parameters required
+
+**Workflow:**
+
+Step 1: Call `fetch_raw_extraction_results()` to get extraction data from the Harvester.
+
+Step 2: Analyze the data and create a curated playbook JSON with this EXACT structure:
+
+```json
+{
+    "playbook": [
+        {
+            "filename": "LeaseOffice.pdf",
+            "legal_entities": ["California Consumer Privacy Act", "GDPR", "Section 7"]
+        },
+        {
+            "filename": "SampleContract.pdf",
+            "legal_entities": ["Minimum Wages Act", "Article 1", "Clause 3.2"]
+        }
+    ]
+}
+```
+
+When creating the playbook:
+- Each entry in "playbook" array represents ONE document file
+- Use the EXACT filename from Step 1 results (e.g., "LeaseOffice.pdf", not "document1.pdf")
+- Combine entities from GLiNER and LexNLP for each file
+- Merge duplicate entities within each file's legal_entities array
+- Only include entities explicitly found in source documents
+- Filter out hallucinations or entities not present in the source
+- "legal_entities" must be an array of strings
+- Do NOT create nested structures or add extra fields
+
+Step 3: Call `save_curated_playbook(curated_playbook_json)` with your JSON as a string.
+
+Step 4: Call `export_playbook_to_disk()` to write the playbook file.
+
+**CRITICAL:**
+- ONLY use these 3 tools: fetch_raw_extraction_results, save_curated_playbook, export_playbook_to_disk
+- DO NOT call other agents or invent tool names
+- DO NOT try to call clause_finder or any other non-existent tools
+"""
+
 )
 
 # 3. Sequential Orchestrator (The Pipeline)
@@ -80,7 +102,7 @@ clause_finder_agent = LlmAgent(
 playbook_pipeline = SequentialAgent(
     name="PlaybookPipeline",
     sub_agents=[clause_harvester, clause_finder_agent],
-    description="Executes the Playbook generation pipeline: first harvest data (in parallel), then compile the playbook."
+    description="Agent that execute two subagents in sequence: Firstly call clause_harvester, then call clause_finder_agent."
 )
 
 # 4. Root Orchestrator (The Interface)
@@ -93,9 +115,6 @@ root_agent = LlmAgent(
     sub_agents=[playbook_pipeline],
     description="You are the ClauseHunter. You oversee the creation of the Legal Playbook.",
     instruction="""Directly run the `PlaybookPipeline` agent. 
-
-If the pipeline completes successfully, inform the user 'Dynamic Playbook generated successfully.' 
-
-If you encounter any errors (such as 'No message in response' or empty LLM responses), the PlaybookPipeline should automatically use fallback mechanisms to create a playbook from raw extraction data. In such cases, still inform the user that the playbook was generated, even if using fallback methods."""
+If the pipeline completes successfully, inform the user 'Dynamic Playbook generated successfully."""
 )
 

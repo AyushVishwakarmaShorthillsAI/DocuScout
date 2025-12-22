@@ -86,6 +86,7 @@ export default function PostIngestionPage({ sessionId }: PostIngestionPageProps)
       if (response.success && response.report) {
         setReportContent(response.report)
         setHasReport(true) // Mark report as ready
+        setShowReportPopup(true) // Automatically show the report popup
         setProgressMessage('') // Clear progress message
       } else {
         const errorMsg = response.error || 'Failed to generate report'

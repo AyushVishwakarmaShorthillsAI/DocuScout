@@ -34,7 +34,7 @@ class AgentHandler:
             adk_client = await get_adk_client()
             
             # Message to Orchestrator - it will route to FileReader agent
-            message = "ingest the files present in DB folder"
+            message = "process and load the files from the DB folder"
             
             # ADK client will use/create global session (session_id parameter is ignored)
             result = await adk_client.chat(
@@ -93,11 +93,11 @@ class AgentHandler:
             # Construct message that instructs Orchestrator to use Consultor subagent
             # The Orchestrator agent should route questions to Consultor based on its instructions
             # But we'll be explicit to ensure it uses Consultor
-            formatted_message = f"""Answer this question about the ingested documents using the Consultor subagent:
+            formatted_message = f"""Provide an answer to this question about the processed documents using the Consultor subagent:
 
 {message}
 
-Please use the Consultor agent to answer this question based on the content of the ingested documents."""
+Please use the Consultor agent to respond based on the document content."""
             
             # ADK client will use/create global session (session_id parameter is ignored)
             result = await adk_client.chat(
@@ -158,12 +158,12 @@ Please use the Consultor agent to answer this question based on the content of t
             # Step 1: Call ClauseHunter
             step1_start = time.time()
             logger.info("[AgentHandler] 📋 STEP 1/3: Starting ClauseHunter agent")
-            logger.info("[AgentHandler] 📋 STEP 1/3: Message: 'hunt the clauses for all the input files'")
+            logger.info("[AgentHandler] 📋 STEP 1/3: Message: 'extract and identify clauses from all the input files'")
             if progress_callback:
                 progress_callback("Step 1/3: Extracting clauses from documents...")
             
             clause_hunter_result = await adk_client.chat(
-                message="hunt the clauses for all the input files",
+                message="extract and identify clauses from all the input files",
                 user_id="docuscout_user",
                 session_id=None  # Always use global session
             )
@@ -184,12 +184,12 @@ Please use the Consultor agent to answer this question based on the content of t
             # Step 2: Call Researcher
             step2_start = time.time()
             logger.info("[AgentHandler] 🔍 STEP 2/3: Starting Researcher agent")
-            logger.info("[AgentHandler] 🔍 STEP 2/3: Message: 'Research about each legal term in dynamic_playbook.json'")
+            logger.info("[AgentHandler] 🔍 STEP 2/3: Message: 'Review and gather information about each legal term in dynamic_playbook.json'")
             if progress_callback:
                 progress_callback("Step 2/3: Researching legal updates...")
             
             researcher_result = await adk_client.chat(
-                message="Research about each legal term in dynamic_playbook.json",
+                message="Review and gather information about each legal term in dynamic_playbook.json",
                 user_id="docuscout_user",
                 session_id=None  # Always use global session
             )
@@ -207,46 +207,46 @@ Please use the Consultor agent to answer this question based on the content of t
             logger.info(f"[AgentHandler] ✅ STEP 2/3 COMPLETED in {step2_elapsed:.2f}s: Researcher succeeded")
             logger.info(f"[AgentHandler] 🔍 STEP 2/3: Response length: {len(researcher_result.get('response', ''))} chars")
             
-            # Step 3: Call Critic
+            # Step 3: Call RiskAuditor (formerly Critic)
             step3_start = time.time()
-            logger.info("[AgentHandler] ⚖️  STEP 3/3: Starting Critic agent")
-            logger.info("[AgentHandler] ⚖️  STEP 3/3: Message: 'use the critic agent and tell the warnings in files'")
+            logger.info("[AgentHandler] ⚖️  STEP 3/3: Starting RiskAuditor agent")
+            logger.info("[AgentHandler] ⚖️  STEP 3/3: Message: 'analyze compliance status across different files'")
             if progress_callback:
-                progress_callback("Step 3/3: Analyzing risks and generating report...")
+                progress_callback("Step 3/3: Analyzing compliance and generating report...")
             
-            critic_result = await adk_client.chat(
-                message="use the critic agent and tell the warnings in files",
+            risk_auditor_result = await adk_client.chat(
+                message="analyze compliance status across different files",
                 user_id="docuscout_user",
                 session_id=None  # Always use global session
             )
             
             step3_elapsed = time.time() - step3_start
-            if not critic_result.get("success"):
-                error_msg = critic_result.get("error", "Critic failed")
+            if not risk_auditor_result.get("success"):
+                error_msg = risk_auditor_result.get("error", "RiskAuditor failed")
                 logger.error(f"[AgentHandler] ❌ STEP 3/3 FAILED after {step3_elapsed:.2f}s: {error_msg}")
                 return {
                     "success": False,
                     "error": f"Risk analysis failed: {error_msg}",
-                    "step": "critic"
+                    "step": "risk_auditor"
                 }
             
-            logger.info(f"[AgentHandler] ✅ STEP 3/3 COMPLETED in {step3_elapsed:.2f}s: Critic succeeded")
-            logger.info(f"[AgentHandler] ⚖️  STEP 3/3: Response length: {len(critic_result.get('response', ''))} chars")
+            logger.info(f"[AgentHandler] ✅ STEP 3/3 COMPLETED in {step3_elapsed:.2f}s: RiskAuditor succeeded")
+            logger.info(f"[AgentHandler] ⚖️  STEP 3/3: Response length: {len(risk_auditor_result.get('response', ''))} chars")
             
             # Read the final report from risk_audit_report.md
             logger.info("[AgentHandler] 📄 Reading final report from risk_audit_report.md")
             try:
                 from pathlib import Path
-                report_path = Path("risk_audit_report.md")
+                report_path = Path(__file__).parent.parent / "risk_audit_report.md"
                 if report_path.exists():
                     report_content = report_path.read_text(encoding="utf-8")
                     logger.info(f"[AgentHandler] ✅ Successfully read risk_audit_report.md ({len(report_content)} chars)")
                 else:
                     logger.warning("[AgentHandler] ⚠️  risk_audit_report.md not found, using agent response")
-                    report_content = critic_result.get("response", "Report generated successfully.")
+                    report_content = risk_auditor_result.get("response", "Report generated successfully.")
             except Exception as e:
                 logger.warning(f"[AgentHandler] ⚠️  Error reading report file: {str(e)}, using agent response")
-                report_content = critic_result.get("response", "Report generated successfully.")
+                report_content = risk_auditor_result.get("response", "Report generated successfully.")
             
             total_elapsed = time.time() - start_time
             logger.info("=" * 80)
@@ -254,7 +254,7 @@ Please use the Consultor agent to answer this question based on the content of t
             logger.info(f"[AgentHandler] 📊 Timing breakdown:")
             logger.info(f"[AgentHandler]    - Step 1 (ClauseHunter): {step1_elapsed:.2f}s")
             logger.info(f"[AgentHandler]    - Step 2 (Researcher): {step2_elapsed:.2f}s")
-            logger.info(f"[AgentHandler]    - Step 3 (Critic): {step3_elapsed:.2f}s")
+            logger.info(f"[AgentHandler]    - Step 3 (RiskAuditor): {step3_elapsed:.2f}s")
             logger.info(f"[AgentHandler]    - Total: {total_elapsed:.2f}s")
             logger.info("=" * 80)
             
@@ -264,7 +264,7 @@ Please use the Consultor agent to answer this question based on the content of t
             return {
                 "success": True,
                 "report": report_content,
-                "session_id": critic_result.get("session_id")
+                "session_id": risk_auditor_result.get("session_id")
             }
             
         except Exception as e:
