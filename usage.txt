@@ -1,0 +1,14 @@
+1) cd DocuScout
+2) make a virtual env (say venv)
+3) pip install -r requirements.txt
+4) adk web
+5) select Agent as agent from the drop down in adk web -> ingest the DB docs -> ask query
+
+ADK WEB COMMANDS:
+
+1) ingest the files present in DB
+2) Ask any question related to ingested files
+3) hunt for the cluases in the DB files
+4) research about the legal terms in dynamic_playbook.json file
+5) use the critic agent and tell the warning in the files -> see the final result
+

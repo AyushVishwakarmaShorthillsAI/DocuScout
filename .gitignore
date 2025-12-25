@@ -61,3 +61,15 @@ logs/
 *.tmp
 *.temp
 .cache/
+
+# Test files
+test_*.py
+
+# Generated/Output files
+*_old.json
+dynamic_playbook.json
+compliance_updates.json
+risk_audit_report.md
+
+# Analysis/documentation (optional - uncomment if you don't want to commit)
+# PROJECT_ANALYSIS.md
